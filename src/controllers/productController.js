@@ -1,5 +1,12 @@
 const Product = require('../models/productModel');
 
+// Match a product by its id, or by its name (case-insensitive)
+const productFilter = (idOrName) => {
+    if (/^[a-f\d]{24}$/i.test(idOrName)) return { _id: idOrName };
+    const escaped = idOrName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return { name: new RegExp('^' + escaped + '$', 'i') };
+};
+
 // @desc    Get all products
 // @route   GET /api/products
 exports.getAllProducts = async (req, res) => {
@@ -12,10 +19,10 @@ exports.getAllProducts = async (req, res) => {
 };
 
 // @desc    Get single product by name
-// @route   GET /api/products/:name
+// @route   GET /api/products/:idOrName
 exports.getProductByName = async (req, res) => {
     try {
-        const product = await Product.findOne({ name: new RegExp('^' + req.params.name + '$', 'i') });
+        const product = await Product.findOne(productFilter(req.params.name));
         if (!product) {
             return res.status(404).json({ success: false, message: 'Product not found' });
         }
@@ -41,9 +48,9 @@ exports.createProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const product = await Product.findOneAndUpdate(
-            { name: new RegExp('^' + req.params.name + '$', 'i') },
+            productFilter(req.params.name),
             req.body,
-            { new: true, runValidators: true }
+            { returnDocument: 'after', runValidators: true }
         );
         if (!product) {
             return res.status(404).json({ success: false, message: 'Product not found' });
@@ -59,9 +66,9 @@ exports.updateProduct = async (req, res) => {
 exports.patchProduct = async (req, res) => {
     try {
         const product = await Product.findOneAndUpdate(
-            { name: new RegExp('^' + req.params.name + '$', 'i') },
+            productFilter(req.params.name),
             { $set: req.body },
-            { new: true }
+            { returnDocument: 'after' }
         );
         if (!product) {
             return res.status(404).json({ success: false, message: 'Product not found' });
@@ -76,7 +83,7 @@ exports.patchProduct = async (req, res) => {
 // @route   DELETE /api/products/:name
 exports.deleteProduct = async (req, res) => {
     try {
-        const product = await Product.findOneAndDelete({ name: new RegExp('^' + req.params.name + '$', 'i') });
+        const product = await Product.findOneAndDelete(productFilter(req.params.name));
         if (!product) {
             return res.status(404).json({ success: false, message: 'Product not found' });
         }
