@@ -51,3 +51,32 @@ exports.login = async (req, res) => {
 exports.getMe = async (req, res) => {
     res.status(200).json({ success: true, user: req.user });
 };
+
+// @desc    Update the logged-in user's name, email or password
+// @route   PATCH /api/auth/me
+exports.updateMe = async (req, res) => {
+    try {
+        // Only these fields can change, so a user can't make themselves an admin
+        const { name, email, currentPassword, newPassword } = req.body || {};
+        const user = await User.findById(req.user._id).select('+password');
+
+        if (name !== undefined) user.name = name;
+        if (email !== undefined) user.email = email;
+        if (newPassword !== undefined) {
+            // 400, not 401: the app logs the user out on any 401
+            if (!currentPassword || !(await user.matchPassword(currentPassword))) {
+                return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+            }
+            user.password = newPassword;
+        }
+
+        // save() runs the schema validators and re-hashes a changed password
+        await user.save();
+        sendUserWithToken(res, 200, user);
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ success: false, message: 'Email is already registered' });
+        }
+        res.status(400).json({ success: false, error: error.message });
+    }
+};
