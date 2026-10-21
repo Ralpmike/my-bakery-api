@@ -56,7 +56,7 @@ module.exports = {
     ],
     tags: [
         { name: 'Products', description: 'Anyone can read products. Only admins can change them.' },
-        { name: 'Auth', description: 'Sign up, log in, and get the current user.' },
+        { name: 'Auth', description: 'Sign up, log in, and get or update the current user.' },
         { name: 'Cart', description: "The logged-in user's cart. Every route needs a token." },
         { name: 'Orders', description: "Check out the cart and view the logged-in user's orders. Every route needs a token." }
     ],
@@ -168,6 +168,21 @@ module.exports = {
                 security: bearer,
                 responses: {
                     200: { description: 'The current user', content: json({ type: 'object', properties: { success: { type: 'boolean' }, user: ref('User') } }) },
+                    401: errors.notLoggedIn
+                }
+            },
+            patch: {
+                tags: ['Auth'],
+                summary: 'Update my profile',
+                description: 'Send only the fields you want to change. To change the password, send both `currentPassword` and `newPassword`. The response has the same shape as log in, so save the returned `user` (and `token`) in your app state.',
+                security: bearer,
+                requestBody: {
+                    required: true,
+                    content: json(ref('UpdateProfileInput'), { name: 'Ada King', email: 'ada.king@example.com' })
+                },
+                responses: {
+                    200: { description: 'Profile updated', content: json(ref('AuthResponse')) },
+                    400: error('Wrong current password, email already used, or a field is invalid', 'Current password is incorrect'),
                     401: errors.notLoggedIn
                 }
             }
@@ -339,6 +354,16 @@ module.exports = {
                 properties: {
                     email: { type: 'string', format: 'email' },
                     password: { type: 'string' }
+                }
+            },
+            UpdateProfileInput: {
+                type: 'object',
+                description: 'All fields are optional.',
+                properties: {
+                    name: { type: 'string' },
+                    email: { type: 'string', format: 'email' },
+                    currentPassword: { type: 'string', description: 'Required when `newPassword` is sent' },
+                    newPassword: { type: 'string', minLength: 6 }
                 }
             },
             AuthResponse: {
